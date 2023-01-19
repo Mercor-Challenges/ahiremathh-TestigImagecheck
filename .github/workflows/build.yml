@@ -1,0 +1,51 @@
+name: build
+
+on:
+  push:
+    branches:
+      - 'master'
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout VSCodeVim
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2-beta
+        with:
+          node-version: '16'
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Prettier
+        if: matrix.os != 'windows-latest'
+        uses: creyD/prettier_action@v3.3
+        with:
+          dry: true
+
+      - name: Lint
+        run: npx tslint -c tslint.json -p tsconfig.json
+
+      - name: Build
+        run: gulp webpack
+
+      - name: Test on ubuntu-latest
+        if: matrix.os != 'windows-latest'
+        run: |
+          gulp prepare-test
+          xvfb-run -a yarn test
+
+      - name: Test on windows-latest
+        if: matrix.os == 'windows-latest'
+        run: |
+          gulp prepare-test
+          yarn test
